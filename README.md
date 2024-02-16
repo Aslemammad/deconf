@@ -60,7 +60,7 @@ export default defineConfig({
 
 The frontmatter section (optional) maps each second level heading to the corresponding file on the disk. In this example, it maps the vite configuration to the `vite.config.ts`. 
 
-Second level headings also accept files directly without the need for frontmatter by just wrapping their value with \`\` similar to the \``tsconfig.json`\` configuration.
+Second level headings also accept files directly without the need for frontmatter by just wrapping their value with \`\` similar to the `\``tsconfig.json`\`` configuration.
 
 Other levels of headings and markdown features are basically ignored so the user can use them for documenting or commenting on configurations.
 
