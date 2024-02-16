@@ -9,6 +9,7 @@ There are also other attempts in this direction, check [config-dir](https://gith
 The overall goal is to have all of our configurations in one file. As discussed in Twitter, JSON and Markdown can work.
 
 Markdown looks ideal since it would support code blocks (e.g. js) and the only work that needs to be done is parsing the markdown and then linking those language markdown blocks to the tools we use daily. 
+
 `config.md`:
 
 ```md
