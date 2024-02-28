@@ -99,6 +99,16 @@ The concern is the language server support for the code blocks in Markdown, enab
 So more information is needed for this section. 
 
 
+## TODO 
+- [x] parse config md
+- [ ] emit files in .deconf
+- [ ] symlinking
+- [ ] git ignore modify command
+- [ ] daemon
+  - [ ] add files to watchlist in daemon
+  - [ ] run daemon in the start of system (.zshrc?)
+
+  
 ## Contributing 
 
 Feel free to raise an issue about the design or add any implementation detail to any of the sections above. 

@@ -2,11 +2,19 @@
   "name": "deconf",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test:vite": "tsx vite-test.ts",
+    "test": "npm-run-all test:*"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.11.20",
+    "npm-run-all": "^4.1.5",
+    "tsx": "^4.7.1",
+    "vite": "^5.1.4"
+  }
 }
