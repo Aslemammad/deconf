@@ -28,3 +28,5 @@ vite.config.ts
 .eslintrc.json
 # Added by deconf
 tsconfig.json
+
+.vscode

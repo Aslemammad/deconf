@@ -2,10 +2,15 @@ package main
 
 import (
 	"bufio"
+	"reflect"
+
+	"errors"
 	"fmt"
 	"os"
 	"path"
 	"slices"
+
+	"github.com/yosuke-furukawa/json5/encoding/json5"
 )
 
 type Format = int8
@@ -113,7 +118,6 @@ func (cf *ConfigFile) Gitignore(fds []FileData) error {
 	var oldFiles []string
 	for scanner.Scan() {
 		s := scanner.Text()
-		fmt.Printf("s: %v\n", s)
 		present := slices.ContainsFunc(fds, func(fd FileData) bool {
 			return fd.name == s
 		})
@@ -122,28 +126,99 @@ func (cf *ConfigFile) Gitignore(fds []FileData) error {
 		}
 	}
 
-	log := "Adding "
+	log := []byte("Adding ")
 	for i, fd := range fds {
 		if !slices.Contains(oldFiles, fd.name) {
-
 			_, err = f.WriteString("\n# Added by deconf\n" + fd.name)
 			if err != nil {
 				return err
 			}
-
 			isLast := i == len(fds)-1
-
 			if !isLast {
-				log += fd.name
-				log += ", "
+				log = append(log, []byte(fd.name+", ")...)
 			} else {
-				log += "and "
-				log += fd.name
-				log += " to .gitignore"
+				log = append(log, []byte("and "+fd.name+" to .gitignore")...)
 			}
 		}
 	}
-	fmt.Println(log)
+	fmt.Println(string(log))
 
+	return nil
+}
+
+//	type Settings struct {
+//		// FilesExclude map[string]bool `json:"files.exclude"`
+//	}
+type Settings map[string]interface{}
+
+func (cf *ConfigFile) Vscode(fds []FileData) error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	settingsPath := path.Join(wd, ".vscode", "settings.json")
+	err = os.MkdirAll(path.Dir(settingsPath), os.ModePerm)
+	if err != nil {
+		return err
+	}
+	_, err = os.Stat(settingsPath)
+	if errors.Is(err, os.ErrNotExist) {
+		var f *os.File
+		f, err = os.Create(settingsPath)
+		f.Write([]byte("{}"))
+	}
+	if err != nil {
+		return err
+	}
+	b, err := os.OpenFile(settingsPath, os.O_RDWR, os.ModeAppend)
+	if err != nil {
+		return err
+	}
+	defer b.Close()
+
+	var settings Settings
+	d := json5.NewDecoder(b)
+	err = d.Decode(&settings)
+	if err != nil {
+		return err
+	}
+	err = b.Truncate(0)
+	if err != nil {
+		return err
+	}
+	_, err = b.Seek(0, 0)
+	if err != nil {
+		return err
+	}
+	fmt.Println("settings\n", settings["files.exclude"], reflect.TypeOf(settings["files.exclude"]))
+	// filesExclude := settings["files.exclude"].(map[string]bool)
+	var filesExclude map[string]bool = make(map[string]bool)
+	untypedFilesExclude := settings["files.exclude"]
+
+	switch t := untypedFilesExclude.(type) {
+	case map[string]interface{}:
+		for k, v := range t {
+			switch tv := v.(type) {
+			case bool:
+				filesExclude[k] = tv
+			}
+		}
+	}
+
+	for _, fd := range fds {
+		filesExclude[fd.name] = true
+	}
+
+	fmt.Printf("filesExclude: %v\n", filesExclude)
+
+	settings["files.exclude"] = filesExclude
+	b2, err := json5.MarshalIndent(settings, "", "\t")
+	if err != nil {
+		return err
+	}
+	_, err = b.Write(b2)
+	if err != nil {
+		return err
+	}
 	return nil
 }

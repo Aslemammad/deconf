@@ -98,8 +98,8 @@ So more information is needed for this section.
 - [x] parse config md
 - [x] emit files in .deconf
 - [x] symlinking
-- [ ] git ignore modify command
-- [ ] vscode ignore (https://stackoverflow.com/a/36193178)
+- [x] git ignore modify command
+- [x] vscode ignore (https://stackoverflow.com/a/36193178)
 - [ ] daemon
   - [ ] add files to watchlist in daemon
   - [ ] run daemon in the start of system (.zshrc?)

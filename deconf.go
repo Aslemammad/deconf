@@ -66,6 +66,10 @@ var initCmd = &cobra.Command{
 		if err != nil {
 			logErr(err)
 		}
+		err = configFile.Vscode(fds)
+		if err != nil {
+			logErr(err)
+		}
 	},
 }
 
