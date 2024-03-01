@@ -32,7 +32,6 @@ var initCmd = &cobra.Command{
 			fi, _ := os.Stat(file)
 			if fi != nil {
 				b, err := os.ReadFile(file)
-				fmt.Println(err)
 
 				format, err := parseFormat(file)
 				if err != nil {
@@ -60,6 +59,10 @@ var initCmd = &cobra.Command{
 			logErr(err)
 		}
 		err = configFile.Symlink(fds)
+		if err != nil {
+			logErr(err)
+		}
+		err = configFile.Gitignore(fds)
 		if err != nil {
 			logErr(err)
 		}

@@ -101,9 +101,10 @@ So more information is needed for this section.
 
 ## TODO 
 - [x] parse config md
-- [ ] emit files in .deconf
-- [ ] symlinking
+- [x] emit files in .deconf
+- [x] symlinking
 - [ ] git ignore modify command
+- [ ] vscode ignore (https://stackoverflow.com/a/36193178)
 - [ ] daemon
   - [ ] add files to watchlist in daemon
   - [ ] run daemon in the start of system (.zshrc?)

@@ -20,3 +20,11 @@ deconf
 
 # Go workspace file
 go.work
+node_modules
+
+# Added by deconf
+vite.config.ts
+# Added by deconf
+.eslintrc.json
+# Added by deconf
+tsconfig.json

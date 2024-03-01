@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path"
+	"slices"
 )
 
 type Format = int8
@@ -59,7 +61,6 @@ func (cf *ConfigFile) Write(fds []FileData) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("fds: %v\n", fds)
 	for _, fd2 := range fds {
 		err = os.MkdirAll(path.Join(deconfDir, path.Dir(fd2.name)), os.ModePerm)
 		if err != nil {
@@ -93,5 +94,56 @@ func (cf *ConfigFile) Symlink(fds []FileData) error {
 		}
 		os.Symlink(target, sym)
 	}
+	return nil
+}
+
+func (cf *ConfigFile) Gitignore(fds []FileData) error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	gitignore := path.Join(wd, ".gitignore")
+	f, err := os.OpenFile(gitignore, os.O_RDWR, os.ModeAppend)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	var oldFiles []string
+	for scanner.Scan() {
+		s := scanner.Text()
+		fmt.Printf("s: %v\n", s)
+		present := slices.ContainsFunc(fds, func(fd FileData) bool {
+			return fd.name == s
+		})
+		if present {
+			oldFiles = append(oldFiles, s)
+		}
+	}
+
+	log := "Adding "
+	for i, fd := range fds {
+		if !slices.Contains(oldFiles, fd.name) {
+
+			_, err = f.WriteString("\n# Added by deconf\n" + fd.name)
+			if err != nil {
+				return err
+			}
+
+			isLast := i == len(fds)-1
+
+			if !isLast {
+				log += fd.name
+				log += ", "
+			} else {
+				log += "and "
+				log += fd.name
+				log += " to .gitignore"
+			}
+		}
+	}
+	fmt.Println(log)
+
 	return nil
 }
