@@ -13,14 +13,9 @@ Markdown looks ideal since it would support code blocks (e.g. js) and the only w
 `config.md`:
 
 ```md
----
-vite: vite.config.ts
-eslint: .eslintrc.json
----
-
 # configuration
 
-## vite
+## `vite.config.ts`
 
 \`\`\`ts
 import { defineConfig } from 'vite'
@@ -35,7 +30,7 @@ export default defineConfig({
 
 Ignore the triple backslashes (\) as they are being used here to avoid github's markdown bug. In the real-world use case, triple backticks (`) are enough.
 
-## eslint
+## `.eslintrc.json`
 
 \`\`\`json
 {
