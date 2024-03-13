@@ -108,6 +108,12 @@ func (cf *ConfigFile) Gitignore(fds []FileData) error {
 		return err
 	}
 	gitignore := path.Join(wd, ".gitignore")
+	_, err = os.Stat(gitignore)
+	if errors.Is(err, os.ErrNotExist) {
+		fmt.Println("There's no .gitignore to add configuration files.")
+		return nil
+	}
+
 	f, err := os.OpenFile(gitignore, os.O_RDWR, os.ModeAppend)
 	if err != nil {
 		return err
@@ -126,29 +132,23 @@ func (cf *ConfigFile) Gitignore(fds []FileData) error {
 		}
 	}
 
-	log := []byte("Adding ")
-	for i, fd := range fds {
+	applied := false
+	for _, fd := range fds {
 		if !slices.Contains(oldFiles, fd.name) {
 			_, err = f.WriteString("\n# Added by deconf\n" + fd.name)
 			if err != nil {
 				return err
 			}
-			isLast := i == len(fds)-1
-			if !isLast {
-				log = append(log, []byte(fd.name+", ")...)
-			} else {
-				log = append(log, []byte("and "+fd.name+" to .gitignore")...)
-			}
+			applied = true
 		}
 	}
-	fmt.Println(string(log))
+	if applied {
+		fmt.Println("Applied changes to .gitignore file.")
+	}
 
 	return nil
 }
 
-//	type Settings struct {
-//		// FilesExclude map[string]bool `json:"files.exclude"`
-//	}
 type Settings map[string]interface{}
 
 func (cf *ConfigFile) Vscode(fds []FileData) error {
@@ -191,7 +191,6 @@ func (cf *ConfigFile) Vscode(fds []FileData) error {
 		return err
 	}
 	fmt.Println("settings\n", settings["files.exclude"], reflect.TypeOf(settings["files.exclude"]))
-	// filesExclude := settings["files.exclude"].(map[string]bool)
 	var filesExclude map[string]bool = make(map[string]bool)
 	untypedFilesExclude := settings["files.exclude"]
 

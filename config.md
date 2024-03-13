@@ -2,6 +2,7 @@
 
 ## `vite.config.ts`
 
+
 ```ts
 import { defineConfig } from 'vite'
 
@@ -39,4 +40,10 @@ export default defineConfig({
   "include": ["src/**/*"],
   "exclude": ["**/*.spec.ts"]
 }
+```
+
+## `watch.json`
+
+```
+{}
 ```

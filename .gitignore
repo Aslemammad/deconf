@@ -30,3 +30,6 @@ vite.config.ts
 tsconfig.json
 
 .vscode
+
+# Added by deconf
+watch.json
