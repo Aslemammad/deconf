@@ -2,25 +2,41 @@ package main
 
 import (
 	"errors"
-	"path"
 
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
 )
 
 type MarkdownParser struct{}
 
-func (m MarkdownParser) Parse(cfg *ConfigFile, base string) ([]FileData, error) {
-	md := goldmark.New()
+func (m MarkdownParser) Parse(cfg *ConfigFile) ([]FileData, error) {
+	md := goldmark.New(
+		goldmark.WithExtensions(
+			meta.New(
+				meta.WithStoresInDocument(),
+			),
+		),
+	)
 	document := md.Parser().Parse(text.NewReader(cfg.content))
+	metaData := document.OwnerDocument().Meta()
+
+	switch t := metaData["gitignore"].(type) {
+	case bool:
+		cfg.gitignore = t
+	}
+	switch t := metaData["vscode"].(type) {
+	case bool:
+		cfg.vscode = t
+	}
 
 	var files []FileData
 	err := ast.Walk(document, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if n.Kind() == ast.KindCodeSpan {
 			pNode, _ := n.Parent().(*ast.Heading)
 			if pNode != nil && pNode.Kind() == ast.KindHeading && pNode.Level == 2 {
-				file := path.Join(base, string(n.Text(cfg.content)))
+				file := string(n.Text(cfg.content))
 
 				if len(files) != 0 {
 					last := files[len(files)-1]

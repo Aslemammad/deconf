@@ -17,7 +17,7 @@ import (
 )
 
 var localConfig = configdir.LocalConfig("deconf")
-var configPath = path.Join(localConfig, "files")
+var configFilesPath = path.Join(localConfig, "files")
 
 var rootCmd = &cobra.Command{
 	Use:   "deconf",
@@ -27,12 +27,16 @@ var rootCmd = &cobra.Command{
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Makes the config file usable by parsing, symlinking and adding to watch list to the daemon",
-	Run: func(cmd *cobra.Command, _ []string) {
-		fmt.Printf("configPath: %v\n", configPath)
-		configFile := getConfigFile()
-		base := "./"
+	Run: func(cmd *cobra.Command, args []string) {
+		var customConfigFile string
+		if len(args) == 0 {
+			customConfigFile = ""
+		} else {
+			customConfigFile = args[0]
+		}
+		configFile := getConfigFile(customConfigFile)
 
-		fds, err := configFile.Parse(base)
+		fds, err := configFile.Parse()
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -40,24 +44,26 @@ var initCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalln(err)
 		}
+		fmt.Println("Wrote down config files successfully.")
 		err = configFile.Symlink(fds)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		modifyGitignore := rootCmd.PersistentFlags().Lookup("gitignore")
-		if modifyGitignore.Value.String() == "true" {
+
+		if configFile.gitignore {
 			err = configFile.Gitignore(fds)
 			if err != nil {
 				log.Fatalln(err)
 			}
+			fmt.Println("Changes applied to .gitignore")
 		}
-		modifyVscode := rootCmd.PersistentFlags().Lookup("vscode")
 
-		if modifyVscode.Value.String() == "true" {
+		if configFile.vscode {
 			err = configFile.Vscode(fds)
 			if err != nil {
 				log.Fatalln(err)
 			}
+			fmt.Println("Changes applied to .vscode/settings.json")
 		}
 
 		f := initDaemonFile()
@@ -70,7 +76,6 @@ var initCmd = &cobra.Command{
 			if line == configFile.path {
 				written = true
 			}
-			fmt.Printf("line: %v\n", line)
 		}
 		if err := s.Err(); err != nil {
 			log.Fatalln(err)
@@ -88,6 +93,13 @@ var watchCmd = &cobra.Command{
 	Use:   "watch",
 	Short: "Similar to init, but watches for changes in the configuration file",
 	Run: func(cmd *cobra.Command, args []string) {
+		var customConfigFile string
+		if len(args) == 0 {
+			customConfigFile = ""
+		} else {
+			customConfigFile = args[0]
+		}
+		configFile := getConfigFile(customConfigFile)
 		w := watcher.New()
 
 		w.SetMaxEvents(1)
@@ -98,6 +110,11 @@ var watchCmd = &cobra.Command{
 			for {
 				select {
 				case <-w.Event:
+					if customConfigFile != "" {
+						fmt.Println(configFile.path, "changed")
+					} else {
+						fmt.Println(customConfigFile, "changed")
+					}
 					initCmd.Run(cmd, args)
 				case err := <-w.Error:
 					log.Fatalln(err)
@@ -107,7 +124,6 @@ var watchCmd = &cobra.Command{
 			}
 		}()
 
-		configFile := getConfigFile()
 		fmt.Println("Watching for changes on", configFile.path)
 		if err := w.Add(configFile.path); err != nil {
 			log.Fatalln(err)
@@ -124,30 +140,25 @@ var daemonCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		f := initDaemonFile()
 		defer f.Close()
-		err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX)
-		fmt.Println("lock")
+		err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
 		if errors.Is(err, syscall.EAGAIN) {
-			fmt.Println("exit")
-
 			// Only allow one file to be run as daemon when injected in the bashrc file for instance
 			os.Exit(0)
 		}
-		fmt.Println("success")
 		if err != nil {
 			log.Fatalln(err)
 		}
 		defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
 		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			time.Sleep(4000)
-		}()
 
 		s := bufio.NewScanner(f)
 		for s.Scan() {
+			wg.Add(1)
 			line := s.Text()
-			fmt.Printf("line: %v\n", line)
+			go func() {
+				watchCmd.Run(watchCmd, []string{line})
+				wg.Done()
+			}()
 		}
 		if err := s.Err(); err != nil {
 			log.Fatalln(err)
@@ -160,7 +171,7 @@ func initDaemonFile() *os.File {
 		log.Fatalln(err)
 	}
 
-	f, err := os.OpenFile(configPath, os.O_RDWR|os.O_CREATE, os.ModePerm)
+	f, err := os.OpenFile(configFilesPath, os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -181,7 +192,7 @@ func parseFormat(file string) (Format, error) {
 	return 0, errors.New("Unsupported format")
 }
 
-func getConfigFile() ConfigFile {
+func getConfigFile(file string) ConfigFile {
 	wd, err := os.Getwd()
 	if err != nil {
 		log.Fatalln(err)
@@ -190,7 +201,13 @@ func getConfigFile() ConfigFile {
 	var configFile ConfigFile
 	for i := 0; i < len(ConfigFileVariations); i++ {
 		variation := ConfigFileVariations[i]
-		file := path.Join(wd, variation)
+		if len(file) == 0 {
+			file = path.Join(wd, variation)
+		} else {
+			if !path.IsAbs(file) {
+				file = path.Join(wd, file)
+			}
+		}
 
 		fi, _ := os.Stat(file)
 		if fi != nil {
@@ -206,7 +223,10 @@ func getConfigFile() ConfigFile {
 				b,
 				format,
 				parsers[format],
+				true,
+				false,
 			}
+			break
 		}
 	}
 	if configFile.path == "" {
@@ -219,11 +239,6 @@ func main() {
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(watchCmd)
 	rootCmd.AddCommand(daemonCmd)
-
-	// init flags
-	rootCmd.PersistentFlags().Bool("gitignore", true, "modify .gitignore to include the symlinks for configuration files")
-	rootCmd.PersistentFlags().Bool("vscode", false, "modify .vscode/settings.json to hide the symlinks for configuration files")
-	// initCmd.PersistentFlags().BoolP("watch", "w", false, "watch for changes")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println((err))

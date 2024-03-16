@@ -1,3 +1,8 @@
+---
+gitignore: true
+vscode: false
+---
+
 # configuration
 
 ## `vite.config.ts`
@@ -45,5 +50,7 @@ export default defineConfig({
 ## `watch.json`
 
 ```
-{}
+{
+  "a": "c"
+}
 ```

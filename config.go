@@ -2,8 +2,6 @@ package main
 
 import (
 	"bufio"
-	"reflect"
-
 	"errors"
 	"fmt"
 	"os"
@@ -26,10 +24,12 @@ var parsers = map[Format]Parser{
 }
 
 type ConfigFile struct {
-	path    string
-	content []byte
-	format  Format
-	parser  Parser
+	path      string
+	content   []byte
+	format    Format
+	parser    Parser
+	gitignore bool
+	vscode    bool
 }
 
 var ConfigFileVariations = [...]string{"config.md"}
@@ -40,11 +40,11 @@ type FileData struct {
 }
 
 type Parser interface {
-	Parse(cf *ConfigFile, base string) ([]FileData, error)
+	Parse(cf *ConfigFile) ([]FileData, error)
 }
 
-func (cf *ConfigFile) Parse(base string) ([]FileData, error) {
-	data, err := cf.parser.Parse(cf, base)
+func (cf *ConfigFile) Parse() ([]FileData, error) {
+	data, err := cf.parser.Parse(cf)
 	if err != nil {
 		return nil, err
 	}
@@ -52,12 +52,9 @@ func (cf *ConfigFile) Parse(base string) ([]FileData, error) {
 }
 
 func (cf *ConfigFile) Write(fds []FileData) error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
+	wd := path.Dir(cf.path)
 	nmDir := path.Join(wd, "node_modules")
-	_, err = os.Stat(nmDir)
+	_, err := os.Stat(nmDir)
 	if err != nil {
 		return err
 	}
@@ -84,16 +81,13 @@ func (cf *ConfigFile) Write(fds []FileData) error {
 }
 
 func (cf *ConfigFile) Symlink(fds []FileData) error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
+	wd := path.Dir(cf.path)
 	nmDir := path.Join(wd, "node_modules")
 	deconfDir := path.Join(nmDir, ".deconf")
 	for _, fd := range fds {
 		target := path.Join(deconfDir, fd.name)
 		sym := path.Join(wd, fd.name)
-		err = os.MkdirAll(path.Dir(sym), os.ModePerm)
+		err := os.MkdirAll(path.Dir(sym), os.ModePerm)
 		if err != nil {
 			return err
 		}
@@ -103,12 +97,9 @@ func (cf *ConfigFile) Symlink(fds []FileData) error {
 }
 
 func (cf *ConfigFile) Gitignore(fds []FileData) error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
+	wd := path.Dir(cf.path)
 	gitignore := path.Join(wd, ".gitignore")
-	_, err = os.Stat(gitignore)
+	_, err := os.Stat(gitignore)
 	if errors.Is(err, os.ErrNotExist) {
 		fmt.Println("There's no .gitignore to add configuration files.")
 		return nil
@@ -152,12 +143,9 @@ func (cf *ConfigFile) Gitignore(fds []FileData) error {
 type Settings map[string]interface{}
 
 func (cf *ConfigFile) Vscode(fds []FileData) error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
+	wd := path.Dir(cf.path)
 	settingsPath := path.Join(wd, ".vscode", "settings.json")
-	err = os.MkdirAll(path.Dir(settingsPath), os.ModePerm)
+	err := os.MkdirAll(path.Dir(settingsPath), os.ModePerm)
 	if err != nil {
 		return err
 	}
@@ -190,7 +178,6 @@ func (cf *ConfigFile) Vscode(fds []FileData) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("settings\n", settings["files.exclude"], reflect.TypeOf(settings["files.exclude"]))
 	var filesExclude map[string]bool = make(map[string]bool)
 	untypedFilesExclude := settings["files.exclude"]
 
@@ -207,8 +194,6 @@ func (cf *ConfigFile) Vscode(fds []FileData) error {
 	for _, fd := range fds {
 		filesExclude[fd.name] = true
 	}
-
-	fmt.Printf("filesExclude: %v\n", filesExclude)
 
 	settings["files.exclude"] = filesExclude
 	b2, err := json5.MarshalIndent(settings, "", "\t")
