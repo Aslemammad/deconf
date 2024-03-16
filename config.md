@@ -50,7 +50,5 @@ export default defineConfig({
 ## `watch.json`
 
 ```
-{
-  "a": "c"
-}
+{}
 ```
