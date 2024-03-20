@@ -7,8 +7,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"sync"
-	"syscall"
 	"time"
 
 	"github.com/kirsle/configdir"
@@ -134,37 +132,37 @@ var watchCmd = &cobra.Command{
 		}
 	}}
 
-var daemonCmd = &cobra.Command{
-	Use:   "daemon",
-	Short: "Similar to init, but watches for changes in the configuration file",
-	Run: func(cmd *cobra.Command, args []string) {
-		f := initDaemonFile()
-		defer f.Close()
-		err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
-		if errors.Is(err, syscall.EAGAIN) {
-			// Only allow one file to be run as daemon when injected in the bashrc file for instance
-			os.Exit(0)
-		}
-		if err != nil {
-			log.Fatalln(err)
-		}
-		defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
-		var wg sync.WaitGroup
+// var daemonCmd = &cobra.Command{
+// 	Use:   "daemon",
+// 	Short: "Similar to init, but watches for changes in the configuration file",
+// 	Run: func(cmd *cobra.Command, args []string) {
+// 		f := initDaemonFile()
+// 		defer f.Close()
+// 		err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
+// 		if errors.Is(err, syscall.EAGAIN) {
+// 			// Only allow one file to be run as daemon when injected in the bashrc file for instance
+// 			os.Exit(0)
+// 		}
+// 		if err != nil {
+// 			log.Fatalln(err)
+// 		}
+// 		defer syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+// 		var wg sync.WaitGroup
 
-		s := bufio.NewScanner(f)
-		for s.Scan() {
-			wg.Add(1)
-			line := s.Text()
-			go func() {
-				watchCmd.Run(watchCmd, []string{line})
-				wg.Done()
-			}()
-		}
-		if err := s.Err(); err != nil {
-			log.Fatalln(err)
-		}
-		wg.Wait()
-	}}
+// 		s := bufio.NewScanner(f)
+// 		for s.Scan() {
+// 			wg.Add(1)
+// 			line := s.Text()
+// 			go func() {
+// 				watchCmd.Run(watchCmd, []string{line})
+// 				wg.Done()
+// 			}()
+// 		}
+// 		if err := s.Err(); err != nil {
+// 			log.Fatalln(err)
+// 		}
+// 		wg.Wait()
+// 	}}
 
 func initDaemonFile() *os.File {
 	if err := configdir.MakePath(localConfig); err != nil {
@@ -238,7 +236,7 @@ func getConfigFile(file string) ConfigFile {
 func main() {
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(watchCmd)
-	rootCmd.AddCommand(daemonCmd)
+	rootCmd.AddCommand(GetDaemonCmd())
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println((err))

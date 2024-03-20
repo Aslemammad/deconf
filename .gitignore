@@ -8,6 +8,7 @@
 *.so
 *.dylib
 deconf
+deconf.wasm
 
 # Test binary, built with `go test -c`
 *.test
